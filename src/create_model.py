@@ -93,7 +93,7 @@ class single_layer_model:
 
 def load_lcia_data(descs_p, target_p):
     X = pd.read_csv(descs_p,header=0,index_col=None)
-    X = X.fillna(X.mean)
+    X = X.fillna(X.mean())
     y = pd.read_csv(target_p,header=0,index_col=None)
     return X.values,y.values
            
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     
     this_model = single_layer_model()
     
-    this_model.train(train_x, train_y, test_x, test_y, num_epoch=400, num_neroun=18, learning_rate=0.01)
+    this_model.train(train_x, train_y, test_x, test_y, num_epoch=1000, num_neroun=256, learning_rate=0.01)
     
     
     
