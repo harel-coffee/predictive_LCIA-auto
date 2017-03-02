@@ -90,13 +90,24 @@ class single_layer_model:
             
             for (y,y_hat) in zip(test_y,pred_y)[0:10]:
                 print y,y_hat
-        
+
+def load_lcia_data(descs_p, target_p):
+    X = pd.read_csv(descs_p,header=0,index_col=None)
+    X = X.fillna(X.mean)
+    y = pd.read_csv(target_p,header=0,index_col=None)
+    return X.values,y.values
+           
 if __name__ == '__main__':
-    boston = learn.datasets.load_dataset('boston')
-    x, y = boston.data, boston.target
-    y.resize( y.size, 1 )
+#     boston = learn.datasets.load_dataset('boston')
+#     X, y = boston.data, boston.target
+    descs_p = '../data/descs/descs_Feb22_166.csv'
+    target_p = '../data/target/CED.csv'
+    X,y = load_lcia_data(descs_p, target_p)
+
+#     y.resize( y.size, 1 )
+
     train_x, test_x, train_y, test_y = cross_validation.train_test_split(
-                                    x, y, test_size=0.2, random_state=42)
+                                    X, y, test_size=0.2, random_state=42)
     scaler = preprocessing.StandardScaler( )
     train_x = scaler.fit_transform( train_x )
     test_x  = scaler.transform( test_x )
