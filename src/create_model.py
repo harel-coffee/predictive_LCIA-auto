@@ -12,13 +12,26 @@ from sklearn.datasets import load_boston
 from sklearn.metrics import r2_score
 
 from tensorflow.contrib import learn
-from sklearn import preprocessing
+from sklearn.preprocessing import StandardScaler
+from sklearn.externals import joblib
+
+import json
+import matplotlib.pyplot as plt
 
 BATCH_SIZE = 1
+def load_lcia_data(descs_p, target_p):
+    X = pd.read_csv(descs_p,header=0,index_col=None)
+    X = X.fillna(X.mean())
+    y = pd.read_csv(target_p,header=0,index_col=None)
+    return X.values,y.values
+
 class single_layer_model:
-    def __init__(self):
-        pass
-    
+    def __init__(self, save_file, input=None, num_neroun=None, output=None):
+        self.savefile = save_file
+        if input and output and num_neroun:
+            print 'rebuild'
+            self.build(input,num_neroun,output)
+        
     def _init_weight(self,shape):
         weights = tf.random_normal(shape,stddev=0.1)
         return tf.Variable(weights)
@@ -27,7 +40,16 @@ class single_layer_model:
         h1 = tf.nn.sigmoid(tf.matmul(X,w1))
         y_ = tf.matmul(h1,w2)
         return y_
+    
+    def fit_scaler(self, scaler, trn_data, tst_data):
+        '''
+        fit sklearn standard scaler
+        '''
+        self.scaler = scaler
+        self.scaler.fit(trn_data)
         
+        return self.scaler.transform(trn_data), self.scaler.transform(tst_data), self.scaler
+      
     def build(self,input_size,num_neroun,output_size, learning_rate=0.01):
         '''
         build the structure of the neural net
@@ -54,6 +76,7 @@ class single_layer_model:
         updates = tf.train.AdagradOptimizer(learning_rate).minimize(cost)
         
         #saver
+        self.saver = tf.train.Saver({'w1':self.w1,'w2':self.w2})
         
         return updates, cost
     
@@ -74,6 +97,9 @@ class single_layer_model:
         #init session
         init = tf.global_variables_initializer()
         costs = []
+        
+        #init saver
+        saver = tf.train.Saver({'w1': self.w1, 'w2':self.w2})
         with tf.Session() as sess:
             sess.run(init)
             for epoch in range(num_epoch):
@@ -88,35 +114,59 @@ class single_layer_model:
 #                 print("Epoch = %d, Training Cost = %.2f%, Testing Costs = %.2f%" % (epoch+1, trn_cost, tst_cost))
             pred_y = sess.run(self.pred,feed_dict={self.X:tst_X,self.y:tst_Y})
             
-            for (y,y_hat) in zip(test_y,pred_y)[0:10]:
+            for (y,y_hat) in zip(tst_Y,pred_y)[0:10]:
                 print y,y_hat
+                
+            #save
+            save_path = saver.save(sess,self.savefile)
+            self.input = trn_X.shape[1]
+            self.output = trn_Y.shape[1]
 
-def load_lcia_data(descs_p, target_p):
-    X = pd.read_csv(descs_p,header=0,index_col=None)
-    X = X.fillna(X.mean())
-    y = pd.read_csv(target_p,header=0,index_col=None)
-    return X.values,y.values
-           
+            self.num_neroun = num_neroun
+            self._save_model(self.savefile+'.json')
+            print("Model Saved in : %s"%save_path)
+                        
+            plt.plot(costs)
+            plt.show()
+    
+    def predict(self, tst_X):
+
+        with tf.Session() as sess:
+            # restore the model
+            self.saver.restore(sess, self.savefile)
+            this_pred = sess.run(self.pred, feed_dict={self.X:tst_X})
+        return this_pred
+    
+    def _save_model(self,model_name):
+        j = {
+            'Input':self.input,
+            'num_neroun': self.num_neroun,
+            'Output':self.output,
+            'model':self.savefile}
+        
+        with open(model_name,'w') as f:
+            json.dump(j,f)
+        
+        #save the scaler
+        try:
+            joblib.dump(self.scaler, self.savefile+'_scaler.pkl',compress=True)
+            print("model saved")
+        except AttributeError:
+            pass
+    
+    @staticmethod
+    def load_model(model_name):
+        '''
+        load sess from file
+        '''
+        with open(model_name) as f:
+            j = json.load(f)
+        return single_layer_model(j['model'],j['Input'],j['num_neroun'],j['Output'])
+         
 if __name__ == '__main__':
-#     boston = learn.datasets.load_dataset('boston')
-#     X, y = boston.data, boston.target
-    descs_p = '../data/descs/descs_Feb22_166.csv'
-    target_p = '../data/target/CED.csv'
-    X,y = load_lcia_data(descs_p, target_p)
+    pass
 
-#     y.resize( y.size, 1 )
 
-    train_x, test_x, train_y, test_y = cross_validation.train_test_split(
-                                    X, y, test_size=0.2, random_state=42)
-    scaler = preprocessing.StandardScaler( )
-    train_x = scaler.fit_transform( train_x )
-    test_x  = scaler.transform( test_x )
-    
-    this_model = single_layer_model()
-    
-    this_model.train(train_x, train_y, test_x, test_y, num_epoch=1000, num_neroun=256, learning_rate=0.01)
-    
-    
     
     
     
