@@ -1,1 +1,1 @@
-{"Input": 65, "num_neroun": 400, "model": "./nets/Mar2_CED/CED_Mar2", "Output": 1}
+{"Input": 77, "num_neroun": 256, "model": "../nets/Mar2_CED/CED_Mar2", "Output": 1}

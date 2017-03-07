@@ -19,6 +19,7 @@ import json
 import matplotlib.pyplot as plt
 
 BATCH_SIZE = 1
+BETA = 0.1
 def load_lcia_data(descs_p, target_p):
     X = pd.read_csv(descs_p,header=0,index_col=None)
     X = X.fillna(X.mean())
@@ -37,7 +38,7 @@ class single_layer_model:
         return tf.Variable(weights)
     
     def _feedforward(self,X,w1,w2):
-        h1 = tf.nn.sigmoid(tf.matmul(X,w1))
+        h1 = tf.nn.relu(tf.matmul(X,w1))
         y_ = tf.matmul(h1,w2)
         return y_
     
@@ -67,10 +68,12 @@ class single_layer_model:
         self.pred = y_
         
         #init backpropagation
-#         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_,self.y))
+#         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_,labels=self.y))
         cost = tf.reduce_mean(tf.square(y_ - self.y))
         
         #add regularization term
+        regularizers = tf.nn.l2_loss(self.w1) + tf.nn.l2_loss(self.w2)
+        cost = tf.reduce_mean(cost + BETA * regularizers)
         
         #update weights
         updates = tf.train.AdagradOptimizer(learning_rate).minimize(cost)
@@ -92,7 +95,7 @@ class single_layer_model:
         y_size = trn_Y.shape[1]
         
         #init cost/update function
-        updates, cost = self.build(input_size=x_size,num_neroun=h_size,output_size=y_size,learning_rate=0.01)
+        updates, cost = self.build(input_size=x_size,num_neroun=h_size,output_size=y_size,learning_rate=0.05)
         
         #init session
         init = tf.global_variables_initializer()
@@ -164,10 +167,15 @@ class single_layer_model:
         return single_layer_model(j['model'],j['Input'],j['num_neroun'],j['Output'])
          
 if __name__ == '__main__':
-    pass
+    descs_p = '../data/descs/descs_Mar07_166.csv'
+    target_p = '../data/target/acidification.csv'
 
-
-    
+    X,y = load_lcia_data(descs_p, target_p)
+    train_x, test_x, train_y, test_y = cross_validation.train_test_split(
+        X, y, test_size=0.2, random_state=1)
+    this_model = single_layer_model('../nets/Mar2_acid/acid_Mar2')
+    train_x, test_x, vec = this_model.fit_scaler(StandardScaler(),train_x, test_x)
+    this_model.train(train_x, train_y, test_x, test_y, num_epoch=1000, num_neroun=256, learning_rate=0.01)
     
     
     
