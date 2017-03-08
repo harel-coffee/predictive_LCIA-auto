@@ -11,8 +11,10 @@ from sklearn import cross_validation
 from sklearn.datasets import load_boston
 from sklearn.metrics import r2_score
 
-from tensorflow.contrib import learn
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import StandardScaler
+
 from sklearn.externals import joblib
 
 import json
@@ -37,20 +39,29 @@ class single_layer_model:
         weights = tf.random_normal(shape,stddev=0.1)
         return tf.Variable(weights)
     
-    def _feedforward(self,X,w1,w2):
-        h1 = tf.nn.relu(tf.matmul(X,w1))
+    def _add_bias(self,shape):
+        return tf.Variable(tf.constant(0.1,shape=shape))
+    
+    def _feedforward(self,X,w1,w2,bias):
+        h1 = tf.nn.relu(tf.matmul(X,w1)+bias)
         y_ = tf.matmul(h1,w2)
         return y_
     
-    def fit_scaler(self, scaler, trn_data, tst_data):
+    def fit_vec(self, vec, trn_data, tst_data):
         '''
         fit sklearn standard scaler
         '''
-        self.scaler = scaler
-        self.scaler.fit(trn_data)
+        self.vec = vec
+        this_norm = Normalizer()
+            
+        self.vec.fit(trn_data)
+        this_norm.fit(trn_data)
         
-        return self.scaler.transform(trn_data), self.scaler.transform(tst_data), self.scaler
-      
+        trn_data = this_norm.transform(trn_data)
+        tst_data = this_norm.fit_transform(tst_data)
+                
+        return self.vec.transform(trn_data), self.vec.transform(tst_data), self.vec
+     
     def build(self,input_size,num_neroun,output_size, learning_rate=0.01):
         '''
         build the structure of the neural net
@@ -62,9 +73,10 @@ class single_layer_model:
         #weights
         self.w1 = self._init_weight((input_size,num_neroun))
         self.w2 = self._init_weight((num_neroun,output_size))
+        self.b1 = self._add_bias([num_neroun])
         
         #init feedforward
-        y_ = self._feedforward(self.X, self.w1, self.w2)
+        y_ = self._feedforward(self.X, self.w1, self.w2,self.b1)
         self.pred = y_
         
         #init backpropagation
@@ -112,9 +124,11 @@ class single_layer_model:
                 trn_cost = r2_score(trn_Y,sess.run(self.pred, feed_dict={self.X:trn_X, self.y:trn_Y}))
                 tst_cost = r2_score(tst_Y,sess.run(self.pred, feed_dict={self.X:tst_X, self.y:tst_Y}))
                 costs.append(tst_cost)
-                
-                print epoch, trn_cost,tst_cost
-#                 print("Epoch = %d, Training Cost = %.2f%, Testing Costs = %.2f%" % (epoch+1, trn_cost, tst_cost))
+                if verbose:
+                    print(("epoch %i, train acc: %g, test acc: %g")%(epoch, trn_cost,tst_cost))
+                elif epoch % 100 == 0:
+                    print(("epoch %i, train acc: %g, test acc: %g")%(epoch, trn_cost,tst_cost))
+                    
             pred_y = sess.run(self.pred,feed_dict={self.X:tst_X,self.y:tst_Y})
             
             for (y,y_hat) in zip(tst_Y,pred_y)[0:10]:
@@ -150,10 +164,10 @@ class single_layer_model:
         with open(model_name,'w') as f:
             json.dump(j,f)
         
-        #save the scaler
+        #save the scaler and pca is exist
         try:
-            joblib.dump(self.scaler, self.savefile+'_scaler.pkl',compress=True)
-            print("model saved")
+            joblib.dump(self.vec, self.savefile+'_vec.pkl',compress=True)
+            print("Vector saved")
         except AttributeError:
             pass
     
@@ -167,14 +181,19 @@ class single_layer_model:
         return single_layer_model(j['model'],j['Input'],j['num_neroun'],j['Output'])
          
 if __name__ == '__main__':
-    descs_p = '../data/descs/descs_Mar07_166.csv'
-    target_p = '../data/target/acidification.csv'
+    # test
+    descs_p = '../data/descs/descs_Mar08_166.csv'
+    target_p = '../data/target/CED.csv'
 
     X,y = load_lcia_data(descs_p, target_p)
     train_x, test_x, train_y, test_y = cross_validation.train_test_split(
         X, y, test_size=0.2, random_state=1)
-    this_model = single_layer_model('../nets/Mar2_acid/acid_Mar2')
-    train_x, test_x, vec = this_model.fit_scaler(StandardScaler(),train_x, test_x)
+    this_model = single_layer_model('../nets/Mar2_acid/CED_Mar2')
+
+    pca = PCA(n_components=20)
+    train_x,test_x,vec= this_model.fit_vec(pca, train_x, test_x)
+    print train_x
+    raw_input()
     this_model.train(train_x, train_y, test_x, test_y, num_epoch=1000, num_neroun=256, learning_rate=0.01)
     
     
