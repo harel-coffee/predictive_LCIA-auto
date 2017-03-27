@@ -1,0 +1,2 @@
+model_checkpoint_path: "acidification.ckpt"
+all_model_checkpoint_paths: "acidification.ckpt"
