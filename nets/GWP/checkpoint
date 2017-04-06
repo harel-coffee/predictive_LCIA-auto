@@ -1,0 +1,2 @@
+model_checkpoint_path: "GWP_Apr4.ckpt"
+all_model_checkpoint_paths: "GWP_Apr4.ckpt"
