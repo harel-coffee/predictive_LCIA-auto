@@ -28,6 +28,9 @@ def load_lcia_data(descs_p, target_p):
     y = pd.read_csv(target_p,header=0,index_col=None)
     return X.values,y.values
 
+class load_model:
+    def __init__(self, graph_path, model_path):
+
 class single_layer_model:
     def __init__(self, save_file, input=None, num_neroun=None, output=None):
         self.savefile = save_file
